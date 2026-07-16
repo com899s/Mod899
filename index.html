@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LyricAMV Studio — Free AI Lyrics Video &amp; AMV Maker</title>
+<meta name="description" content="Free online AI-powered music lyrics video and AMV (anime music video) maker. Beat detection, auto lyric sync, animated themes, and video export — all in your browser.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-icon">🎬</span>
+    <h1>LyricAMV <span class="accent">Studio</span></h1>
+    <span class="tag">Free AI Lyrics Video &amp; AMV Maker</span>
+  </div>
+  <div class="topbar-actions">
+    <button id="btnExport" class="btn btn-primary" disabled>⬇ Export Video</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ LEFT PANEL : INPUTS ============ -->
+  <aside class="panel panel-left">
+
+    <section class="card">
+      <h2>1 · Music</h2>
+      <label class="dropzone" id="audioDrop">
+        <input type="file" id="audioFile" accept="audio/*" hidden>
+        <span class="dz-icon">🎵</span>
+        <span class="dz-text">Drop an audio file or click to browse</span>
+        <span class="dz-sub" id="audioName">MP3 · WAV · OGG · M4A</span>
+      </label>
+      <div id="audioInfo" class="audio-info hidden">
+        <canvas id="waveform" width="560" height="64"></canvas>
+        <div class="ai-badges">
+          <span class="badge" id="badgeBpm">♩ BPM: —</span>
+          <span class="badge" id="badgeBeats">⚡ Beats: —</span>
+          <span class="badge" id="badgeEnergy">🔥 Energy: —</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2 · Lyrics</h2>
+      <textarea id="lyricsInput" rows="8" placeholder="Paste your lyrics here, one line per row…&#10;&#10;Or import an .lrc file below.&#10;Blank lines create pauses."></textarea>
+      <div class="btn-row">
+        <button id="btnAutoSync" class="btn" disabled>✨ AI Auto-Sync</button>
+        <button id="btnTapSync" class="btn" disabled>👆 Tap Sync</button>
+        <label class="btn btn-ghost">📂 Import .lrc
+          <input type="file" id="lrcFile" accept=".lrc,.txt" hidden>
+        </label>
+        <button id="btnExportLrc" class="btn btn-ghost" disabled>💾 .lrc</button>
+      </div>
+      <p class="hint" id="syncHint">AI Auto-Sync distributes lines using vocal-energy analysis. Tap Sync: play the song and hit <kbd>Space</kbd>/<kbd>Enter</kbd> when each line starts.</p>
+      <ol id="lyricTimeline" class="lyric-timeline"></ol>
+    </section>
+
+    <section class="card">
+      <h2>3 · Visuals (AMV)</h2>
+      <label class="dropzone dz-small" id="mediaDrop">
+        <input type="file" id="mediaFiles" accept="image/*" multiple hidden>
+        <span class="dz-icon">🖼️</span>
+        <span class="dz-text">Drop anime images / artwork (multiple)</span>
+        <span class="dz-sub">Auto Ken-Burns motion + beat-synced cuts</span>
+      </label>
+      <div id="mediaStrip" class="media-strip"></div>
+    </section>
+
+  </aside>
+
+  <!-- ============ CENTER : PREVIEW ============ -->
+  <section class="stage">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="stage" width="1280" height="720"></canvas>
+      <div id="stageOverlay" class="stage-overlay">
+        <div class="overlay-inner">
+          <span class="overlay-icon">🎬</span>
+          <p>Load a song, add lyrics &amp; images,<br>then press play to preview your video.</p>
+        </div>
+      </div>
+      <div id="tapBanner" class="tap-banner hidden">TAP SYNC — press <kbd>Space</kbd> when the next line starts · <kbd>Esc</kbd> to finish</div>
+      <div id="exportBanner" class="export-banner hidden">
+        <div class="spinner"></div>
+        <span id="exportStatus">Rendering video…</span>
+        <button id="btnCancelExport" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button id="btnPlay" class="btn btn-round" disabled>▶</button>
+      <span id="timeCur" class="time">0:00</span>
+      <input type="range" id="seek" min="0" max="1000" value="0" disabled>
+      <span id="timeDur" class="time">0:00</span>
+      <label class="res-pick">
+        <select id="resolution">
+          <option value="1280x720">720p</option>
+          <option value="1920x1080">1080p</option>
+          <option value="1080x1920">Vertical (Shorts/TikTok)</option>
+          <option value="1080x1080">Square</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT PANEL : STYLE ============ -->
+  <aside class="panel panel-right">
+
+    <section class="card">
+      <h2>4 · AI Style</h2>
+      <button id="btnAiStyle" class="btn btn-primary btn-block" disabled>🤖 AI Suggest Style</button>
+      <p class="hint">Analyses tempo &amp; energy to pick a matching theme.</p>
+      <div class="theme-grid" id="themeGrid"></div>
+    </section>
+
+    <section class="card">
+      <h2>Text</h2>
+      <label class="field">Title (intro card)
+        <input type="text" id="videoTitle" placeholder="Song title — Artist">
+      </label>
+      <label class="field">Font
+        <select id="fontPick">
+          <option value="'Segoe UI', system-ui, sans-serif">Clean Sans</option>
+          <option value="Georgia, 'Times New Roman', serif">Elegant Serif</option>
+          <option value="'Courier New', monospace">Typewriter</option>
+          <option value="Impact, 'Arial Black', sans-serif" selected>Bold Impact</option>
+          <option value="'Comic Sans MS', 'Segoe UI', cursive">Manga Pop</option>
+        </select>
+      </label>
+      <label class="field">Animation
+        <select id="animPick">
+          <option value="fade">Fade</option>
+          <option value="rise" selected>Rise &amp; Glow</option>
+          <option value="karaoke">Karaoke Fill</option>
+          <option value="typewriter">Typewriter</option>
+          <option value="bounce">Beat Bounce</option>
+        </select>
+      </label>
+      <label class="field range-field">Text size
+        <input type="range" id="fontSize" min="24" max="96" value="52">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Effects</h2>
+      <label class="check"><input type="checkbox" id="fxParticles" checked> Particles (theme)</label>
+      <label class="check"><input type="checkbox" id="fxBeatPulse" checked> Beat pulse / zoom</label>
+      <label class="check"><input type="checkbox" id="fxBars" checked> Audio spectrum bars</label>
+      <label class="check"><input type="checkbox" id="fxVignette" checked> Cinematic vignette</label>
+      <label class="check"><input type="checkbox" id="fxGrain" > Film grain</label>
+      <label class="check"><input type="checkbox" id="fxLetterbox"> Letterbox (AMV bars)</label>
+    </section>
+
+    <section class="card about">
+      <h2>Free &amp; Private</h2>
+      <p>Everything runs 100% in your browser. Your music, lyrics and images never leave your device. Export as WebM video, no watermark, no sign-up.</p>
+    </section>
+
+  </aside>
+
+</main>
+
+<footer class="foot">LyricAMV Studio · open source · runs entirely client-side</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>
