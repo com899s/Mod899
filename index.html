@@ -90,6 +90,19 @@
       </div>
     </div>
 
+    <div id="exportResult" class="export-result hidden">
+      <div class="er-box">
+        <h3>🎉 Your video is ready</h3>
+        <video id="erVideo" controls playsinline></video>
+        <div class="btn-row er-actions">
+          <a id="erSave" class="btn btn-primary" download>⬇ Save video</a>
+          <a id="erOpen" class="btn" target="_blank" rel="noopener">↗ Open in new tab</a>
+          <button id="erClose" class="btn btn-ghost">Close</button>
+        </div>
+        <p class="hint">If saving doesn't start, right-click (or long-press) the video above and choose "Save video as…" — or use "Open in new tab" and save from there.</p>
+      </div>
+    </div>
+
     <div class="transport">
       <button id="btnPlay" class="btn btn-round" disabled>▶</button>
       <span id="timeCur" class="time">0:00</span>
