@@ -794,6 +794,10 @@ function pause() {
    ===================================================================== */
 async function exportVideo() {
   if (state.exporting || !state.audioEl) return;
+  if (typeof MediaRecorder === 'undefined') {
+    alert('Your browser does not support in-page video recording. Please use Chrome, Edge or Firefox.');
+    return;
+  }
   ensureAudioGraph();
   await actx.resume();
 
@@ -811,9 +815,15 @@ async function exportVideo() {
     ...audioDest.stream.getAudioTracks()
   ]);
 
-  const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    .find(m => MediaRecorder.isTypeSupported(m)) || '';
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+  // webm first, mp4 for Safari
+  const codec = [
+    { mime: 'video/webm;codecs=vp9,opus', ext: 'webm' },
+    { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' },
+    { mime: 'video/webm', ext: 'webm' },
+    { mime: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', ext: 'mp4' },
+    { mime: 'video/mp4', ext: 'mp4' }
+  ].find(c => MediaRecorder.isTypeSupported(c.mime)) || { mime: '', ext: 'webm' };
+  const rec = new MediaRecorder(stream, { mimeType: codec.mime, videoBitsPerSecond: 8_000_000 });
   const chunks = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
 
@@ -828,8 +838,8 @@ async function exportVideo() {
 
   rec.onstop = () => {
     if (chunks.length && !rec._cancelled) {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      download(blob, (state.fileName || 'lyric-video') + '.webm');
+      const blob = new Blob(chunks, { type: codec.mime || 'video/webm' });
+      showExportResult(blob, (state.fileName || 'lyric-video') + '.' + codec.ext);
     }
     cleanup();
   };
@@ -859,6 +869,27 @@ function cancelExport() {
   }
 }
 
+/* result modal: preview + explicit save, so a blocked auto-download never
+   loses the rendered video */
+let resultURL = null;
+function showExportResult(blob, name) {
+  if (resultURL) URL.revokeObjectURL(resultURL);
+  resultURL = URL.createObjectURL(blob);
+  const video = $('erVideo'), save = $('erSave'), open = $('erOpen');
+  video.src = resultURL;
+  save.href = resultURL; save.download = name;
+  open.href = resultURL;
+  $('exportResult').classList.remove('hidden');
+  // also try the direct download for browsers that allow it
+  download(blob, name);
+}
+function closeExportResult() {
+  $('exportResult').classList.add('hidden');
+  const video = $('erVideo');
+  video.pause(); video.removeAttribute('src'); video.load();
+  if (resultURL) { URL.revokeObjectURL(resultURL); resultURL = null; }
+}
+
 /* =====================================================================
    helpers + wiring
    ===================================================================== */
@@ -875,8 +906,11 @@ function download(blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
   a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 }
 function flashBtn(btn, msg) {
   const old = btn.textContent;
@@ -916,6 +950,7 @@ els.btnExportLrc.addEventListener('click', exportLrc);
 els.btnAiStyle.addEventListener('click', aiSuggestStyle);
 els.btnExport.addEventListener('click', exportVideo);
 els.btnCancelExport.addEventListener('click', cancelExport);
+$('erClose').addEventListener('click', closeExportResult);
 
 els.resolution.addEventListener('change', () => {
   const [w, h] = els.resolution.value.split('x').map(Number);
